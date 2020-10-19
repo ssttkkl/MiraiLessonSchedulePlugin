@@ -18,8 +18,8 @@ import java.time.OffsetDateTime
 fun CoroutineScope.newDayScheduleProducer() = produce {
     while (true) {
         try {
-            val now = OffsetDateTime.now()
-            val today = now.toLocalDate()
+            var now = OffsetDateTime.now()
+            var today = now.toLocalDate()
             val nextNotifyTime = GeneralConfig.dayScheduleNotifyTimeAsTime.atDate(
                 if (now.toLocalTime() > GeneralConfig.dayScheduleNotifyTimeAsTime)
                     today.plusDays(1)
@@ -29,6 +29,8 @@ fun CoroutineScope.newDayScheduleProducer() = produce {
 
             delay(1000 * (nextNotifyTime.toEpochSecond() - now.toEpochSecond()))
 
+            now = OffsetDateTime.now()
+            today = now.toLocalDate()
             val schs = transaction(database) {
                 val weekOfToday = GeneralConfig.weekOf(today)
                 Schedule.find {

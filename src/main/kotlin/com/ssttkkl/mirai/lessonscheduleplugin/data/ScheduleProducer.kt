@@ -18,8 +18,8 @@ fun CoroutineScope.newScheduleProducer(capacity: Int = 16) = produce(capacity = 
     var nextLesson = GeneralConfig.lessonTimetableAsTime.indexOfFirst { it > now }
 
     while (true) {
-        val now = OffsetDateTime.now()
-        val today = now.toLocalDate()
+        var now = OffsetDateTime.now()
+        var today = now.toLocalDate()
         val nextTime = if (nextLesson == -1) {
             GeneralConfig.lessonTimetableAsTime[0].atDate(today.plusDays(1))
         } else {
@@ -27,10 +27,13 @@ fun CoroutineScope.newScheduleProducer(capacity: Int = 16) = produce(capacity = 
         }.atOffset(now.offset)
 
         delay(1000 * (nextTime.toEpochSecond() - now.toEpochSecond()) - GeneralConfig.scheduleNotifyBefore)
+
         MiraiLessonSchedulePlugin.logger.info("正在确认第${++nextLesson}节的课程安排……")
+        now = OffsetDateTime.now()
+        today = now.toLocalDate()
+        val weekOfToday = GeneralConfig.weekOf(today)
 
         transaction(database) {
-            val weekOfToday = GeneralConfig.weekOf(today)
             Schedule.find {
                 (Schedules.fromWeek lessEq weekOfToday) and
                     (Schedules.toWeek greaterEq weekOfToday) and

@@ -82,18 +82,25 @@ object MiraiLessonSchedulePlugin : KotlinPlugin(
         scheduleProducer = newScheduleProducer()
         scheduleConsumer.start()
 
-        dayScheduleProducer = newDayScheduleProducer()
-        dayScheduleConsumer.start()
+        if (GeneralConfig.dayScheduleNotifyEnabled) {
+            dayScheduleProducer = newDayScheduleProducer()
+            dayScheduleConsumer.start()
+        }
 
         LessonScheduleCommand.register()
     }
 
     override fun onDisable() {
         scheduleProducer.cancel()
-        dayScheduleProducer.cancel()
         runBlocking {
             scheduleConsumer.cancelAndJoin()
-            dayScheduleConsumer.cancelAndJoin()
+        }
+
+        if (GeneralConfig.dayScheduleNotifyEnabled) {
+            dayScheduleProducer.cancel()
+            runBlocking {
+                dayScheduleConsumer.cancelAndJoin()
+            }
         }
 
         LessonScheduleCommand.unregister()
