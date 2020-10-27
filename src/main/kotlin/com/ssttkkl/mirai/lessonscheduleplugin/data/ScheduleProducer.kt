@@ -9,31 +9,34 @@ import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.delay
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.transactions.transaction
+import java.time.LocalDate
 import java.time.LocalTime
 import java.time.OffsetDateTime
 
 @ExperimentalCoroutinesApi
 fun CoroutineScope.newScheduleProducer(capacity: Int = 16) = produce(capacity = capacity) {
-    val now = LocalTime.now()
-    var nextLesson = GeneralConfig.lessonTimetableAsTime.indexOfFirst { it > now }
+    var nextLesson = LocalTime.now().let { now ->
+        GeneralConfig.lessonTimetableAsTime.indexOfFirst { it > now }
+    }
 
     while (true) {
-        var now = OffsetDateTime.now()
-        var today = now.toLocalDate()
+        val now = OffsetDateTime.now()
+        val today = now.toLocalDate()
         val nextTime = if (nextLesson == -1) {
+            nextLesson = 0
             GeneralConfig.lessonTimetableAsTime[0].atDate(today.plusDays(1))
         } else {
             GeneralConfig.lessonTimetableAsTime[nextLesson].atDate(today)
         }.atOffset(now.offset)
 
-        delay(1000 * (nextTime.toEpochSecond() - now.toEpochSecond()) - GeneralConfig.scheduleNotifyBefore)
+        MiraiLessonSchedulePlugin.logger.info("下一次课程通知将于${nextTime}进行")
+        delay(1000 * (nextTime.toEpochSecond() - now.toEpochSecond() - GeneralConfig.scheduleNotifyBefore))
 
-        MiraiLessonSchedulePlugin.logger.info("正在确认第${++nextLesson}节的课程安排……")
-        now = OffsetDateTime.now()
-        today = now.toLocalDate()
-        val weekOfToday = GeneralConfig.weekOf(today)
+        // 注意：这里可能已经过去了一天，所以要重新获取today
+        val weekOfToday = GeneralConfig.weekOf(LocalDate.now())
 
         transaction(database) {
+            MiraiLessonSchedulePlugin.logger.info("正在确认第${nextLesson + 1}节课的课程安排……")
             Schedule.find {
                 (Schedules.fromWeek lessEq weekOfToday) and
                     (Schedules.toWeek greaterEq weekOfToday) and
@@ -44,5 +47,9 @@ fun CoroutineScope.newScheduleProducer(capacity: Int = 16) = produce(capacity = 
             MiraiLessonSchedulePlugin.logger.info("课程通知：${it.first}")
             send(it.second)
         }
+
+        nextLesson++
+        if (nextLesson == GeneralConfig.lessonTimetable.size)
+            nextLesson = -1 // 下一节课是明天第一节
     }
 }

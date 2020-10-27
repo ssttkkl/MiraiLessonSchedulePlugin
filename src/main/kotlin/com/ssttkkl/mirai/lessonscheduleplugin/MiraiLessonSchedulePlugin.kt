@@ -79,8 +79,10 @@ object MiraiLessonSchedulePlugin : KotlinPlugin(
     override fun onEnable() {
         GeneralConfig.reload()
 
-        scheduleProducer = newScheduleProducer()
-        scheduleConsumer.start()
+        if (GeneralConfig.scheduleNotifyEnabled) {
+            scheduleProducer = newScheduleProducer()
+            scheduleConsumer.start()
+        }
 
         if (GeneralConfig.dayScheduleNotifyEnabled) {
             dayScheduleProducer = newDayScheduleProducer()
@@ -91,9 +93,11 @@ object MiraiLessonSchedulePlugin : KotlinPlugin(
     }
 
     override fun onDisable() {
-        scheduleProducer.cancel()
-        runBlocking {
-            scheduleConsumer.cancelAndJoin()
+        if (GeneralConfig.scheduleNotifyEnabled) {
+            scheduleProducer.cancel()
+            runBlocking {
+                scheduleConsumer.cancelAndJoin()
+            }
         }
 
         if (GeneralConfig.dayScheduleNotifyEnabled) {

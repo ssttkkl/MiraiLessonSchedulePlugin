@@ -31,10 +31,11 @@ object GeneralConfig : AutoSavePluginConfig("general") {
         get() = lessonTimetable.map { LocalTime.parse(it, timeFormatter) }.sorted()
 
     var notifies by value<Map<Long, BotNotify>>(emptyMap())
+
+    var scheduleNotifyEnabled by value(true)
     var scheduleNotifyBefore by value(10 * 60 * 1000)
 
     var dayScheduleNotifyEnabled by value(true)
-
     var dayScheduleNotifyTime by value("07:00")
     val dayScheduleNotifyTimeAsTime
         get() = LocalTime.parse(dayScheduleNotifyTime, timeFormatter)
